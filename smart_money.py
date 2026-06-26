@@ -351,3 +351,135 @@ def validate_structure(df):
 if __name__ == "__main__":
 
     print("Smart Money Part 1 Loaded Successfully.")
+    # ==========================================================
+# SMART MONEY - PART 2
+# BOS (Break of Structure) & CHOCH (Change of Character)
+# ICT-based Logic (Swing-based)
+# ==========================================================
+
+
+def _get_last_confirmed_swing_highs(df, lookback=200):
+    data = df.tail(lookback)
+    return find_swing_highs(data)
+
+
+def _get_last_confirmed_swing_lows(df, lookback=200):
+    data = df.tail(lookback)
+    return find_swing_lows(data)
+
+
+# ==========================================================
+# BOS DETECTION (Bullish & Bearish)
+# ==========================================================
+
+def detect_bos(df, lookback=200):
+
+    swings_high = _get_last_confirmed_swing_highs(df, lookback)
+    swings_low = _get_last_confirmed_swing_lows(df, lookback)
+
+    close = df["close"].iloc[-1]
+    time = df.index[-1]
+
+    bos = {
+        "last_bullish_bos_level": None,
+        "last_bearish_bos_level": None,
+        "last_bullish_bos_time": None,
+        "last_bearish_bos_time": None,
+        "last_bos_candle": None,
+        "distance_from_price": None
+    }
+
+    # --------------------------
+    # Bullish BOS (break above swing high)
+    # --------------------------
+    for s in reversed(swings_high):
+
+        if close > s["price"]:
+
+            bos["last_bullish_bos_level"] = s["price"]
+            bos["last_bullish_bos_time"] = str(s["time"])
+            bos["last_bos_candle"] = str(time)
+            bos["distance_from_price"] = close - s["price"]
+            break
+
+    # --------------------------
+    # Bearish BOS (break below swing low)
+    # --------------------------
+    for s in reversed(swings_low):
+
+        if close < s["price"]:
+
+            bos["last_bearish_bos_level"] = s["price"]
+            bos["last_bearish_bos_time"] = str(s["time"])
+            bos["last_bos_candle"] = str(time)
+            bos["distance_from_price"] = close - s["price"]
+            break
+
+    return bos
+
+
+# ==========================================================
+# CHOCH DETECTION (Trend Shift)
+# ==========================================================
+
+def detect_choch(df, lookback=200):
+
+    swings_high = _get_last_confirmed_swing_highs(df, lookback)
+    swings_low = _get_last_confirmed_swing_lows(df, lookback)
+
+    close = df["close"].iloc[-1]
+    time = df.index[-1]
+
+    choch = {
+        "last_bullish_choch_level": None,
+        "last_bearish_choch_level": None,
+        "last_bullish_choch_time": None,
+        "last_bearish_choch_time": None,
+        "last_choch_candle": None,
+        "distance_from_price": None
+    }
+
+    # --------------------------
+    # Bullish CHOCH (break structure after bearish)
+    # --------------------------
+    if len(swings_high) > 1:
+
+        prev_high = swings_high[-2]["price"]
+
+        if close > prev_high:
+
+            choch["last_bullish_choch_level"] = prev_high
+            choch["last_bullish_choch_time"] = str(swings_high[-2]["time"])
+            choch["last_choch_candle"] = str(time)
+            choch["distance_from_price"] = close - prev_high
+
+    # --------------------------
+    # Bearish CHOCH
+    # --------------------------
+    if len(swings_low) > 1:
+
+        prev_low = swings_low[-2]["price"]
+
+        if close < prev_low:
+
+            choch["last_bearish_choch_level"] = prev_low
+            choch["last_bearish_choch_time"] = str(swings_low[-2]["time"])
+            choch["last_choch_candle"] = str(time)
+            choch["distance_from_price"] = close - prev_low
+
+    return choch
+
+
+# ==========================================================
+# STRUCTURE WRAPPER (MAIN EXPORT)
+# ==========================================================
+
+def get_structure_signals(df, lookback=200):
+
+    bos = detect_bos(df, lookback)
+    choch = detect_choch(df, lookback)
+
+    return {
+        "BOS": bos,
+        "CHOCH": choch
+        }
