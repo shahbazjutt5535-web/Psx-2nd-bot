@@ -233,3 +233,47 @@ def distance_from_last_low(df):
     price = float(df["close"].iloc[-1])
 
     return price - swing["price"]
+    # ==========================================================
+# Market Structure Builder
+# ==========================================================
+
+def build_market_structure(df, lookback=300):
+
+    last_high = get_last_swing_high(df)
+    last_low = get_last_swing_low(df)
+
+    previous_high = get_previous_swing_high(df)
+    previous_low = get_previous_swing_low(df)
+
+    highest = highest_swing(df, lookback)
+    lowest = lowest_swing(df, lookback)
+
+    return {
+
+        "last_swing_high": None if last_high is None else last_high["price"],
+        "last_swing_high_time": None if last_high is None else str(last_high["time"]),
+
+        "last_swing_low": None if last_low is None else last_low["price"],
+        "last_swing_low_time": None if last_low is None else str(last_low["time"]),
+
+        "previous_swing_high": None if previous_high is None else previous_high["price"],
+        "previous_swing_high_time": None if previous_high is None else str(previous_high["time"]),
+
+        "previous_swing_low": None if previous_low is None else previous_low["price"],
+        "previous_swing_low_time": None if previous_low is None else str(previous_low["time"]),
+
+        "highest_swing": None if highest is None else highest["price"],
+        "highest_swing_time": None if highest is None else str(highest["time"]),
+
+        "lowest_swing": None if lowest is None else lowest["price"],
+        "lowest_swing_time": None if lowest is None else str(lowest["time"]),
+
+        "swing_high_count": count_swing_highs(df, lookback),
+        "swing_low_count": count_swing_lows(df, lookback),
+
+        "swing_distance": swing_distance(df, lookback),
+
+        "distance_from_last_high": distance_from_last_high(df),
+        "distance_from_last_low": distance_from_last_low(df)
+
+    }
