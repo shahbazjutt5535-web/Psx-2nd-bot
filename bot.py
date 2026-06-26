@@ -20,7 +20,7 @@ from indicators import *
 
 nest_asyncio.apply()
 
-BOT_TOKEN = os.environ.get("BOT_TOKEN")
+BOT_TOKEN = os.environ.get("7809164972:AAEr1day076eHhJIOKZvUjCRnF29EZUOOXs")
 
 logging.basicConfig(level=logging.INFO)
 
