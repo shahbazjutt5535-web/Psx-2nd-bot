@@ -344,28 +344,54 @@ ATR Target Distance: {v(data['risk']['target'])}
     return msg
 
 # ---------------- HANDLER ----------------
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(
+        """✅ SMC Institutional PSX Bot is Working
+
+Response Status: Online
+
+Available Commands
+
+/ffc_5m
+/ffc_1h
+/ffc_4h
+/ffc_1d"""
+    )
+
+
 async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    symbol, tf = parse_cmd(update.message.text)
+    try:
+        symbol, tf = parse_cmd(update.message.text)
 
-    df = await asyncio.to_thread(get_data, symbol, tf)
+        df = await asyncio.to_thread(get_data, symbol, tf)
 
-    if df is None or df.empty:
-        await update.message.reply_text("No data")
-        return
+        if df is None or df.empty:
+            await update.message.reply_text("❌ No data available.")
+            return
 
-    msg = build_report(df, symbol, tf)
-    await update.message.reply_text(msg)
+        msg = build_report(df, symbol, tf)
+        await update.message.reply_text(msg)
 
+    except Exception as e:
+        logging.exception(e)
+        await update.message.reply_text("❌ No data available.")
 # ---------------- MAIN ----------------
 def main():
     import threading
-    threading.Thread(target=run_flask).start()
 
-    bot = ApplicationBuilder().token(BOT_TOKEN).build()
+    threading.Thread(target=run_flask, daemon=True).start()
 
-    # dynamic wildcard handler
-    bot.add_handler(CommandHandler("start", handle))
-    bot.run_polling()
+    app = ApplicationBuilder().token(BOT_TOKEN).build()
+
+    app.add_handler(CommandHandler("start", start))
+
+    app.add_handler(CommandHandler("ffc_5m", handle))
+    app.add_handler(CommandHandler("ffc_1h", handle))
+    app.add_handler(CommandHandler("ffc_4h", handle))
+    app.add_handler(CommandHandler("ffc_1d", handle))
+
+    app.run_polling()
+
 
 if __name__ == "__main__":
     main()
