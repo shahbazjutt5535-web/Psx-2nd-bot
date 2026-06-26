@@ -364,8 +364,7 @@ def main():
     bot = ApplicationBuilder().token(BOT_TOKEN).build()
 
     # dynamic wildcard handler
-bot.add_handler(CommandHandler("start", handle))
-
+    bot.add_handler(CommandHandler("start", handle))
     bot.run_polling()
 
 if __name__ == "__main__":
