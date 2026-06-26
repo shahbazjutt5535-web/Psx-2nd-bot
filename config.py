@@ -1,10 +1,4 @@
-import os
-
-BOT_TOKEN = os.getenv("BOT_TOKEN")
-
-BARS = 800
-
-DEFAULT_EXCHANGE = "PSX"
+# config.py
 
 TIMEFRAMES = {
     "5m": "5m",
@@ -13,5 +7,15 @@ TIMEFRAMES = {
     "1h": "1h",
     "4h": "4h",
     "1d": "1d",
-    "1w": "1w"
+    "1w": "1w",
+    "1m": "1m"
+}
+
+DEFAULT_BARS = 500
+
+EXCHANGES = {
+    "PSX": "PSX",
+    "FX": "FX_IDC",
+    "CRYPTO": "BINANCE",
+    "COMMODITY": "TVC"
 }
