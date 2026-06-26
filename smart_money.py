@@ -133,3 +133,103 @@ def get_previous_swing_low(df):
         return None
 
     return lows[-2]
+    # ==========================================================
+# Highest Confirmed Swing High
+# ==========================================================
+
+def highest_swing(df, lookback=300):
+
+    data = df.tail(lookback)
+
+    highs = find_swing_highs(data)
+
+    if len(highs) == 0:
+        return None
+
+    return max(highs, key=lambda x: x["price"])
+
+
+# ==========================================================
+# Lowest Confirmed Swing Low
+# ==========================================================
+
+def lowest_swing(df, lookback=300):
+
+    data = df.tail(lookback)
+
+    lows = find_swing_lows(data)
+
+    if len(lows) == 0:
+        return None
+
+    return min(lows, key=lambda x: x["price"])
+
+
+# ==========================================================
+# Swing High Count
+# ==========================================================
+
+def count_swing_highs(df, lookback=300):
+
+    data = df.tail(lookback)
+
+    return len(find_swing_highs(data))
+
+
+# ==========================================================
+# Swing Low Count
+# ==========================================================
+
+def count_swing_lows(df, lookback=300):
+
+    data = df.tail(lookback)
+
+    return len(find_swing_lows(data))
+
+
+# ==========================================================
+# Swing Distance
+# ==========================================================
+
+def swing_distance(df, lookback=300):
+
+    high = highest_swing(df, lookback)
+
+    low = lowest_swing(df, lookback)
+
+    if high is None or low is None:
+        return None
+
+    return abs(high["price"] - low["price"])
+
+
+# ==========================================================
+# Current Price Distance From Last Swing High
+# ==========================================================
+
+def distance_from_last_high(df):
+
+    swing = get_last_swing_high(df)
+
+    if swing is None:
+        return None
+
+    price = float(df["close"].iloc[-1])
+
+    return price - swing["price"]
+
+
+# ==========================================================
+# Current Price Distance From Last Swing Low
+# ==========================================================
+
+def distance_from_last_low(df):
+
+    swing = get_last_swing_low(df)
+
+    if swing is None:
+        return None
+
+    price = float(df["close"].iloc[-1])
+
+    return price - swing["price"]
