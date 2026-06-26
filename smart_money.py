@@ -483,3 +483,144 @@ def get_structure_signals(df, lookback=200):
         "BOS": bos,
         "CHOCH": choch
         }
+# ==========================================================
+# SMART MONEY - PART 3
+# Liquidity Engine (EQH / EQL / Sweeps / Pools)
+# ==========================================================
+
+
+def _round_price(p, precision=0.5):
+    """
+    Group prices into liquidity zones
+    """
+    try:
+        return round(float(p) / precision) * precision
+    except:
+        return None
+
+
+# ==========================================================
+# Equal Highs & Equal Lows
+# ==========================================================
+
+def find_equal_highs(df, tolerance=0.2, lookback=200):
+
+    data = df.tail(lookback)
+
+    highs = data["high"].values
+
+    eqh = []
+
+    for i in range(len(highs)):
+        for j in range(i+1, len(highs)):
+
+            if abs(highs[i] - highs[j]) <= tolerance:
+                eqh.append((float(highs[i]), float(highs[j])))
+
+    return eqh
+
+
+def find_equal_lows(df, tolerance=0.2, lookback=200):
+
+    data = df.tail(lookback)
+
+    lows = data["low"].values
+
+    eql = []
+
+    for i in range(len(lows)):
+        for j in range(i+1, len(lows)):
+
+            if abs(lows[i] - lows[j]) <= tolerance:
+                eql.append((float(lows[i]), float(lows[j])))
+
+    return eql
+
+
+# ==========================================================
+# Liquidity Pools
+# ==========================================================
+
+def get_liquidity_pools(df, lookback=200):
+
+    eqh = find_equal_highs(df, lookback=lookback)
+    eql = find_equal_lows(df, lookback=lookback)
+
+    pools = {
+        "buy_side_liquidity": [x[0] for x in eqh],
+        "sell_side_liquidity": [x[0] for x in eql],
+        "eqh_count": len(eqh),
+        "eql_count": len(eql)
+    }
+
+    return pools
+
+
+# ==========================================================
+# Liquidity Sweep Detection
+# ==========================================================
+
+def detect_liquidity_sweeps(df, lookback=200):
+
+    data = df.tail(lookback)
+
+    sweeps = []
+
+    for i in range(2, len(data)):
+
+        prev_high = data["high"].iloc[i-1]
+        prev_low = data["low"].iloc[i-1]
+
+        current_high = data["high"].iloc[i]
+        current_low = data["low"].iloc[i]
+
+        close = data["close"].iloc[i]
+
+        time = data.index[i]
+
+        # --------------------------
+        # Buy-side sweep (high broken then close below)
+        # --------------------------
+        if current_high > prev_high and close < prev_high:
+
+            sweeps.append({
+                "type": "buy_side_liquidity_sweep",
+                "level": float(prev_high),
+                "time": str(time),
+                "size": float(current_high - prev_high),
+                "distance": float(close - prev_high)
+            })
+
+        # --------------------------
+        # Sell-side sweep (low broken then close above)
+        # --------------------------
+        if current_low < prev_low and close > prev_low:
+
+            sweeps.append({
+                "type": "sell_side_liquidity_sweep",
+                "level": float(prev_low),
+                "time": str(time),
+                "size": float(prev_low - current_low),
+                "distance": float(close - prev_low)
+            })
+
+    return sweeps
+
+
+# ==========================================================
+# Liquidity Summary (MAIN EXPORT)
+# ==========================================================
+
+def get_liquidity_data(df, lookback=200):
+
+    pools = get_liquidity_pools(df, lookback)
+    sweeps = detect_liquidity_sweeps(df, lookback)
+
+    return {
+        "buy_side_liquidity": pools["buy_side_liquidity"],
+        "sell_side_liquidity": pools["sell_side_liquidity"],
+        "equal_high_count": pools["eqh_count"],
+        "equal_low_count": pools["eql_count"],
+        "liquidity_sweeps": sweeps,
+        "total_sweeps": len(sweeps)
+    }
