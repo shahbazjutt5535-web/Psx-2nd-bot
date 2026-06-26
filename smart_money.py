@@ -1,184 +1,135 @@
+"""
+==========================================================
+SMART MONEY CONCEPTS MODULE
+Institutional Market Structure Engine
+Part 1A
+==========================================================
+"""
+
 import pandas as pd
 import numpy as np
 
-from helpers import *
 
+# ==========================================================
+# Helper
+# ==========================================================
 
-class SmartMoney:
+def _price(v):
+    try:
+        return float(v)
+    except:
+        return np.nan
 
-    def __init__(self, df):
 
-        self.df = df.copy()
+# ==========================================================
+# Swing High Detection
+# ==========================================================
 
-        self.swing_highs = []
-        self.swing_lows = []
+def find_swing_highs(df, left=2, right=2):
 
-        self.bos = []
+    swings = []
 
-        self.choch = []
+    highs = df["high"].values
 
-        self.equal_highs = []
+    for i in range(left, len(df)-right):
 
-        self.equal_lows = []
+        current = highs[i]
 
-        self.buy_liquidity = []
+        previous = highs[i-left:i]
 
-        self.sell_liquidity = []
+        future = highs[i+1:i+right+1]
 
-        self.sweeps = []
+        if current > previous.max() and current > future.max():
 
-        self.fvg = []
+            swings.append({
+                "index": i,
+                "price": float(current),
+                "time": df.index[i]
+            })
 
-        self.order_blocks = []
+    return swings
 
-        self.breaker_blocks = []
 
-        self.mitigation_blocks = []
+# ==========================================================
+# Swing Low Detection
+# ==========================================================
 
-        self.supply = []
+def find_swing_lows(df, left=2, right=2):
 
-        self.demand = []
+    swings = []
 
-        self.imbalances = []
+    lows = df["low"].values
 
+    for i in range(left, len(df)-right):
 
+        current = lows[i]
 
-    ##################################################
+        previous = lows[i-left:i]
 
-    # SWING HIGH LOW
+        future = lows[i+1:i+right+1]
 
-    ##################################################
+        if current < previous.min() and current < future.min():
 
-    def detect_swings(self, left=3, right=3):
+            swings.append({
+                "index": i,
+                "price": float(current),
+                "time": df.index[i]
+            })
 
-        high = self.df["high"].values
+    return swings
 
-        low = self.df["low"].values
 
-        for i in range(left, len(self.df)-right):
+# ==========================================================
+# Last Swing High
+# ==========================================================
 
-            if high[i] == max(high[i-left:i+right+1]):
+def get_last_swing_high(df):
 
-                self.swing_highs.append({
+    highs = find_swing_highs(df)
 
-                    "index": i,
+    if len(highs) == 0:
+        return None
 
-                    "price": high[i]
+    return highs[-1]
 
-                })
 
-            if low[i] == min(low[i-left:i+right+1]):
+# ==========================================================
+# Last Swing Low
+# ==========================================================
 
-                self.swing_lows.append({
+def get_last_swing_low(df):
 
-                    "index": i,
+    lows = find_swing_lows(df)
 
-                    "price": low[i]
+    if len(lows) == 0:
+        return None
 
-                })
+    return lows[-1]
 
-        return self.swing_highs, self.swing_lows
 
+# ==========================================================
+# Previous Swing High
+# ==========================================================
 
+def get_previous_swing_high(df):
 
-    ##################################################
+    highs = find_swing_highs(df)
 
-    # BREAK OF STRUCTURE
+    if len(highs) < 2:
+        return None
 
-    ##################################################
+    return highs[-2]
 
-    def detect_bos(self):
 
-        self.detect_swings()
+# ==========================================================
+# Previous Swing Low
+# ==========================================================
 
-        close = self.df["close"].values
+def get_previous_swing_low(df):
 
-        for swing in self.swing_highs:
+    lows = find_swing_lows(df)
 
-            i = swing["index"]
+    if len(lows) < 2:
+        return None
 
-            if i >= len(close)-1:
-
-                continue
-
-            for j in range(i+1, len(close)):
-
-                if close[j] > swing["price"]:
-
-                    self.bos.append({
-
-                        "type": "Bullish",
-
-                        "level": swing["price"],
-
-                        "index": j
-
-                    })
-
-                    break
-
-        for swing in self.swing_lows:
-
-            i = swing["index"]
-
-            if i >= len(close)-1:
-
-                continue
-
-            for j in range(i+1, len(close)):
-
-                if close[j] < swing["price"]:
-
-                    self.bos.append({
-
-                        "type": "Bearish",
-
-                        "level": swing["price"],
-
-                        "index": j
-
-                    })
-
-                    break
-
-        return self.bos
-
-
-
-    ##################################################
-
-    # CHOCH
-
-    ##################################################
-
-    def detect_choch(self):
-
-        if len(self.bos) == 0:
-
-            self.detect_bos()
-
-        previous = None
-
-        for b in self.bos:
-
-            if previous is None:
-
-                previous = b
-
-                continue
-
-            if b["type"] != previous["type"]:
-
-                self.choch.append({
-
-                    "index": b["index"],
-
-                    "level": b["level"],
-
-                    "type": b["type"]
-
-                })
-
-            previous = b
-
-        return self.choch
+    return lows[-2]
