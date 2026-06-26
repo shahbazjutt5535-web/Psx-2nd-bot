@@ -277,3 +277,77 @@ def build_market_structure(df, lookback=300):
         "distance_from_last_low": distance_from_last_low(df)
 
     }
+    # ==========================================================
+# Smart Money - Part 1D
+# Public Functions & Helpers
+# ==========================================================
+
+
+def safe_round(value, digits=2):
+    """
+    Safely round numeric values.
+    """
+    try:
+        if value is None:
+            return None
+        return round(float(value), digits)
+    except:
+        return None
+
+
+def format_structure(structure):
+
+    if structure is None:
+        return {}
+
+    result = {}
+
+    for key, value in structure.items():
+
+        if isinstance(value, float):
+            result[key] = safe_round(value)
+
+        else:
+            result[key] = value
+
+    return result
+
+
+def get_swing_structure(df):
+
+    """
+    Returns complete Swing Structure dictionary.
+
+    Used by main.py
+
+    """
+
+    structure = build_market_structure(df)
+
+    return format_structure(structure)
+
+
+# ==========================================================
+# Simple Validation
+# ==========================================================
+
+def validate_structure(df):
+
+    try:
+
+        data = get_swing_structure(df)
+
+        return len(data) > 0
+
+    except:
+
+        return False
+
+
+# ==========================================================
+# Module Test
+# ==========================================================
+
+if __name__ == "__main__":
+
+    print("Smart Money Part 1 Loaded Successfully.")
