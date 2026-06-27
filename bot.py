@@ -26,7 +26,6 @@ from config import BOT_TOKEN
 
 from tv_data import get_data
 from indicators import calculate_all
-from smc_formatter import build_report
 
 nest_asyncio.apply()
 
@@ -346,29 +345,7 @@ Please wait...
     else:
 
         await update.message.reply_text(report)
-        # ----------------------------------------------------
-# REPORT BUILDER
-# ----------------------------------------------------
 
-def v(x):
-    if x is None:
-        return "-"
-
-    try:
-        return round(float(x), 2)
-    except:
-        return x
-
-
-def build_report(data, symbol, timeframe):
-
-    msg = f"""
-🏛 Institutional Market Data
-
-Symbol : {symbol}
-TimeFrame : {timeframe.upper()}
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # ----------------------------------------------------
 # REPORT BUILDER
 # PART 4 (SECTION 1 → SECTION 8)
@@ -779,6 +756,7 @@ ATR Stop Distance: {v(data['risk']['stop'])}
 ATR Target Distance: {v(data['risk']['target'])}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+"""
 
     return msg
 # ----------------------------------------------------
