@@ -272,7 +272,7 @@ async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     try:
 
-        symbol, timeframe = parse_command(update.message.text)
+        symbol, exchange, timeframe = parse_command(update.message.text)
 
     except Exception as e:
 
