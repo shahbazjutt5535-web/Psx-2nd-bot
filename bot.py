@@ -160,7 +160,9 @@ def parse_command(command: str):
         raise Exception("Unsupported Timeframe")
 
     return SYMBOLS[symbol], tf.lower()
-    # ----------------------------------------------------
+    
+
+# ----------------------------------------------------
 # START COMMAND
 # ----------------------------------------------------
 
