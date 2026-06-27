@@ -176,9 +176,8 @@ def parse_command(command: str):
 
     tv_symbol, exchange = SYMBOLS[symbol]
 
-return tv_symbol, exchange, tf.lower()
+    return tv_symbol, exchange, tf.lower()
     
-
 # ----------------------------------------------------
 # START COMMAND
 # ----------------------------------------------------
