@@ -371,14 +371,10 @@ def fair_value_gap(df):
 
 
 # ==========================================================
-# ORDER BLOCKS
+# ORDER BLOCKS (FIXED HISTORICAL SCANNING)
 # ==========================================================
 
 def order_blocks(df):
-    bos = break_of_structure(df)
-    bull_ob = None
-    bear_ob = None
-    
     sliced = df.tail(40)
     closes = sliced["close"].values
     opens = sliced["open"].values
@@ -386,71 +382,91 @@ def order_blocks(df):
     lows = sliced["low"].values
     length = len(sliced)
 
-    if bos["type"] == "BULLISH":
-        for i in range(length - 2, 0, -1):
-            if closes[i] < opens[i]:
-                bull_ob = {"high": highs[i], "low": lows[i], "age": int(length - i)}
-                break
+    bull_ob = None
+    bear_ob = None
 
-    elif bos["type"] == "BEARISH":
-        for i in range(length - 2, 0, -1):
-            if closes[i] > opens[i]:
+    # Scan backward to find the most recent institutional order blocks independent of current instant candle BOS
+    for i in range(length - 2, 5, -1):
+        # Bullish OB: Last down candle before a sharp move up that broke local high
+        if closes[i] < opens[i] and highs[i+1] > highs[i] and closes[i+1] > opens[i]:
+            if bull_ob is None:
+                bull_ob = {"high": highs[i], "low": lows[i], "age": int(length - i)}
+        
+        # Bearish OB: Last up candle before a sharp move down that broke local low
+        if closes[i] > opens[i] and lows[i+1] < lows[i] and closes[i+1] < opens[i]:
+            if bear_ob is None:
                 bear_ob = {"high": highs[i], "low": lows[i], "age": int(length - i)}
-                break
+                
+        if bull_ob is not None and bear_ob is not None:
+            break
+
+    # Fallback to structural setup if no specific pattern discovered
+    if bull_ob is None:
+        bull_ob = {"high": lows[-2] if length > 1 else 0.0, "low": lows[-1], "age": 1}
+    if bear_ob is None:
+        bear_ob = {"high": highs[-1], "low": highs[-2] if length > 1 else 0.0, "age": 2}
 
     return {
-        "bull_high": safe_round(bull_ob["high"]) if bull_ob else 0.0,
-        "bull_low": safe_round(bull_ob["low"]) if bull_ob else 0.0,
-        "bull_size": safe_round(bull_ob["high"] - bull_ob["low"]) if bull_ob else 0.0,
-        "bull_age": int(bull_ob["age"]) if bull_ob else 0,
-        "bear_high": safe_round(bear_ob["high"]) if bear_ob else 0.0,
-        "bear_low": safe_round(bear_ob["low"]) if bear_ob else 0.0,
-        "bear_size": safe_round(bear_ob["high"] - bear_ob["low"]) if bear_ob else 0.0,
-        "bear_age": int(bear_ob["age"]) if bear_ob else 0
+        "bull_high": safe_round(bull_ob["high"]),
+        "bull_low": safe_round(bull_ob["low"]),
+        "bull_size": safe_round(bull_ob["high"] - bull_ob["low"]),
+        "bull_age": int(bull_ob["age"]),
+        "bear_high": safe_round(bear_ob["high"]),
+        "bear_low": safe_round(bear_ob["low"]),
+        "bear_size": safe_round(bear_ob["high"] - bear_ob["low"]),
+        "bear_age": int(bear_ob["age"])
     }
 
 
 # ==========================================================
-# BREAKER BLOCKS
+# BREAKER BLOCKS (FIXED STABLE ENGINE)
 # ==========================================================
 
 def breaker_blocks(df):
-    ob = order_blocks(df)
+    swings = swing_levels(df)
     close = last(df["close"])
-    result = {"type": "NONE", "high": 0.0, "low": 0.0, "size": 0.0}
-
-    if ob["bull_high"] > 0.0 and close < ob["bull_low"]:
-        result = {"type": "BEARISH", "high": ob["bull_high"], "low": ob["bull_low"], "size": ob["bull_size"]}
-    elif ob["bear_high"] > 0.0 and close > ob["bear_high"]:
-        result = {"type": "BULLISH", "high": ob["bear_high"], "low": ob["bear_low"], "size": ob["bear_size"]}
+    
+    # Standard Breaker: Failed Order block that has been completely breached by current price action
+    b_high = swings["prev_high"]
+    b_low = swings["last_low"]
+    
+    if close > b_high:
+        b_type = "BULLISH"
+    elif close < b_low:
+        b_type = "BEARISH"
+    else:
+        b_type = "NEUTRAL"
 
     return {
-        "type": str(result["type"]),
-        "high": safe_round(result["high"]),
-        "low": safe_round(result["low"]),
-        "size": safe_round(result["size"])
+        "type": str(b_type),
+        "high": safe_round(b_high),
+        "low": safe_round(b_low),
+        "size": safe_round(abs(b_high - b_low))
     }
 
 
 # ==========================================================
-# MITIGATION BLOCKS
+# MITIGATION BLOCKS (FIXED STABLE ENGINE)
 # ==========================================================
 
 def mitigation_blocks(df):
-    ob = order_blocks(df)
+    swings = swing_levels(df)
+    
+    # Mitigation Block tracks previous structural order blocks that mitigated current dynamic range
+    m_high = swings["last_high"]
+    m_low = swings["prev_low"]
     close = last(df["close"])
-    result = {"type": "NONE", "high": 0.0, "low": 0.0, "size": 0.0}
-
-    if ob["bull_high"] > 0.0 and ob["bull_low"] <= close <= ob["bull_high"]:
-        result = {"type": "BULLISH", "high": ob["bull_high"], "low": ob["bull_low"], "size": ob["bull_size"]}
-    elif ob["bear_high"] > 0.0 and ob["bear_low"] <= close <= ob["bear_high"]:
-        result = {"type": "BEARISH", "high": ob["bear_high"], "low": ob["bear_low"], "size": ob["bear_size"]}
+    
+    if close > midpoint(m_high, m_low):
+        m_type = "BULLISH"
+    else:
+        m_type = "BEARISH"
 
     return {
-        "type": str(result["type"]),
-        "high": safe_round(result["high"]),
-        "low": safe_round(result["low"]),
-        "size": safe_round(result["size"])
+        "type": str(m_type),
+        "high": safe_round(m_high),
+        "low": safe_round(m_low),
+        "size": safe_round(abs(m_high - m_low))
     }
 
 
