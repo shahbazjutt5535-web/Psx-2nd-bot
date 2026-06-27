@@ -290,11 +290,12 @@ Please wait...
 
     try:
 
-        df = await asyncio.to_thread(
-            get_data,
-            symbol,
-            timeframe
-        )
+     df = await asyncio.to_thread(
+    get_data,
+    symbol,
+    exchange,
+    timeframe
+)
 
     except Exception as e:
 
