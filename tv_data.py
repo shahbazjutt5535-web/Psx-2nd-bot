@@ -46,7 +46,7 @@ DEFAULT_EXCHANGE = "PSX"
 # GET DATA
 # ==========================================================
 
-def get_data(symbol, timeframe, bars=500):
+def get_data(symbol, exchange, timeframe, bars=500):
 
     if timeframe not in TIMEFRAME_MAP:
         raise Exception(f"Unsupported timeframe: {timeframe}")
@@ -57,7 +57,7 @@ def get_data(symbol, timeframe, bars=500):
 
         df = tv.get_hist(
             symbol=symbol,
-            exchange=DEFAULT_EXCHANGE,
+            exchange=exchange,
             interval=interval,
             n_bars=bars
         )
