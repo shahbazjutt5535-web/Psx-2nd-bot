@@ -21,7 +21,7 @@ TIMEFRAMES = {
     "1m": "1m"
 }
 
-DEFAULT_TIMEFRAME = "5m"
+DEFAULT_TIMEFRAME = "1d"
 DEFAULT_BARS = 500
 
 # ==========================================================
