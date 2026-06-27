@@ -174,7 +174,9 @@ def parse_command(command: str):
     if tf.lower() not in TIMEFRAMES:
         raise Exception("Unsupported Timeframe")
 
-    return SYMBOLS[symbol], tf.lower()
+    tv_symbol, exchange = SYMBOLS[symbol]
+
+return tv_symbol, exchange, tf.lower()
     
 
 # ----------------------------------------------------
