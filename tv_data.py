@@ -1,73 +1,72 @@
 from tvDatafeed import TvDatafeed, Interval
 import pandas as pd
+import logging
+
+logger = logging.getLogger(__name__)
+
+# ==========================================================
+# LOGIN
+# ==========================================================
+
+tv = TvDatafeed()
 
 
-class TVData:
+# ==========================================================
+# TIMEFRAME MAPPING
+# ==========================================================
 
-    def __init__(self):
-        self.tv = TvDatafeed(auto_login=False)
+TIMEFRAME_MAP = {
 
-        self.interval_map = {
-            "5m": Interval.in_5_minute,
-            "15m": Interval.in_15_minute,
-            "30m": Interval.in_30_minute,
-            "1h": Interval.in_1_hour,
-            "4h": Interval.in_4_hour,
-            "1d": Interval.in_daily,
-            "1w": Interval.in_weekly,
-            "1M": Interval.in_monthly,
-        }
+    "5m": Interval.in_5_minute,
 
-    def get_data(self, symbol, exchange="PSX", timeframe="4h", bars=500):
+    "15m": Interval.in_15_minute,
 
-        interval = self.interval_map.get(timeframe)
+    "30m": Interval.in_30_minute,
 
-        df = self.tv.get_hist(
+    "1h": Interval.in_1_hour,
+
+    "4h": Interval.in_4_hour,
+
+    "1d": Interval.in_daily,
+
+    "1w": Interval.in_weekly,
+
+    "1m": Interval.in_monthly
+
+}
+
+
+# ==========================================================
+# EXCHANGE
+# ==========================================================
+
+DEFAULT_EXCHANGE = "PSX"
+# ==========================================================
+# GET DATA
+# ==========================================================
+
+def get_data(symbol, timeframe, bars=500):
+
+    if timeframe not in TIMEFRAME_MAP:
+        raise Exception(f"Unsupported timeframe: {timeframe}")
+
+    interval = TIMEFRAME_MAP[timeframe]
+
+    try:
+
+        df = tv.get_hist(
             symbol=symbol,
-            exchange=exchange,
+            exchange=DEFAULT_EXCHANGE,
             interval=interval,
             n_bars=bars
         )
 
-        if df is None:
-            return None
+    except Exception as e:
 
-        if len(df) == 0:
-            return None
+        logger.exception(e)
+        raise Exception("TradingView connection failed.")
 
-        df.reset_index(inplace=True)
+    if df is None or len(df) == 0:
+        raise Exception(f"No data received for {symbol}.")
 
-        return df
-
-    def get_close(self, df):
-        return float(df.iloc[-1]["close"])
-
-    def get_high(self, df):
-        return float(df.iloc[-1]["high"])
-
-    def get_low(self, df):
-        return float(df.iloc[-1]["low"])
-
-    def get_open(self, df):
-        return float(df.iloc[-1]["open"])
-
-    def get_volume(self, df):
-        return float(df.iloc[-1]["volume"])
-
-    def latest_candle(self, df):
-        return df.iloc[-1]
-
-    def previous_candle(self, df):
-        return df.iloc[-2]
-
-    def last_100(self, df):
-        return df.tail(100)
-
-    def last_200(self, df):
-        return df.tail(200)
-
-    def last_300(self, df):
-        return df.tail(300)
-
-    def last_500(self, df):
-        return df.tail(500)
+    df = df.copy()
