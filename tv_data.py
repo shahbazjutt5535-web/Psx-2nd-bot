@@ -1,6 +1,7 @@
 from tvDatafeed import TvDatafeed, Interval
 import pandas as pd
 import logging
+import numpy as np
 
 logger = logging.getLogger(__name__)
 
