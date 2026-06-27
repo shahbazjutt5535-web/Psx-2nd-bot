@@ -137,6 +137,8 @@ SYMBOLS = {
     "ASTL":"ASTL",
     "MUGHAL":"MUGHAL",
     "ENGROH":"ENGRO",
+    "MZNPETF": "MZNPETF",
+    "NBPGETF": "NBPGETF",
 }
 
 
