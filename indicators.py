@@ -931,3 +931,98 @@ def rejection_blocks(df):
         "type": rejection["type"]
 
     }
+# ==========================================================
+# PROFESSIONAL FAIR VALUE GAP (FVG)
+# ==========================================================
+
+def fair_value_gap(df):
+
+    bullish = []
+    bearish = []
+
+    for i in range(2, len(df)):
+
+        # Bullish FVG
+        if df["low"].iloc[i] > df["high"].iloc[i - 2]:
+
+            bullish.append({
+
+                "high": df["low"].iloc[i],
+
+                "low": df["high"].iloc[i - 2],
+
+                "size": df["low"].iloc[i] - df["high"].iloc[i - 2],
+
+                "index": i
+
+            })
+
+        # Bearish FVG
+        if df["high"].iloc[i] < df["low"].iloc[i - 2]:
+
+            bearish.append({
+
+                "high": df["low"].iloc[i - 2],
+
+                "low": df["high"].iloc[i],
+
+                "size": df["low"].iloc[i - 2] - df["high"].iloc[i],
+
+                "index": i
+
+            })
+
+    bull = bullish[-1] if bullish else None
+    bear = bearish[-1] if bearish else None
+
+    current = last(df["close"])
+
+    bull_fill = 0
+    bear_fill = 0
+
+    if bull:
+        total = bull["high"] - bull["low"]
+        if total > 0:
+            bull_fill = min(
+                100,
+                max(
+                    0,
+                    (bull["high"] - current) / total * 100
+                )
+            )
+
+    if bear:
+        total = bear["high"] - bear["low"]
+        if total > 0:
+            bear_fill = min(
+                100,
+                max(
+                    0,
+                    (current - bear["low"]) / total * 100
+                )
+            )
+
+    return {
+
+        "bull_high": safe_round(bull["high"]) if bull else 0,
+
+        "bull_low": safe_round(bull["low"]) if bull else 0,
+
+        "bull_size": safe_round(bull["size"]) if bull else 0,
+
+        "bull_fill": safe_round(bull_fill),
+
+        "bear_high": safe_round(bear["high"]) if bear else 0,
+
+        "bear_low": safe_round(bear["low"]) if bear else 0,
+
+        "bear_size": safe_round(bear["size"]) if bear else 0,
+
+        "bear_fill": safe_round(bear_fill),
+
+        "bull_count": len(bullish),
+
+        "bear_count": len(bearish)
+
+    }
+    
