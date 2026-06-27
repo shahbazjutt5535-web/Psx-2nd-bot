@@ -70,3 +70,32 @@ def get_data(symbol, timeframe, bars=500):
         raise Exception(f"No data received for {symbol}.")
 
     df = df.copy()
+# ==========================================================
+# DATA CLEANING + FINAL OUTPUT
+# ==========================================================
+
+    # Ensure datetime index is clean
+    if not isinstance(df.index, pd.DatetimeIndex):
+        try:
+            df.index = pd.to_datetime(df.index)
+        except Exception:
+            pass
+
+    # Standardize column names (just in case)
+    df.columns = [str(c).lower() for c in df.columns]
+
+    # Remove duplicates if any
+    df = df[~df.index.duplicated(keep="last")]
+
+    # Sort by time (important for indicators)
+    df = df.sort_index()
+
+    # Handle missing values
+    df = df.replace([np.inf, -np.inf], np.nan)
+    df = df.dropna()
+
+    # Final safety check
+    if len(df) < 20:
+        raise Exception(f"Not enough clean data for {symbol}.")
+
+    return df
