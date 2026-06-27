@@ -2,42 +2,42 @@ import pandas as pd
 import numpy as np
 
 # ==========================================================
-# SMC INSTITUTIONAL ENGINE
-# VERSION 3.0 PROFESSIONAL - PRODUCTION READY
-# PART 1: IMPORTS + HELPER FUNCTIONS
+# HELPER FUNCTIONS (ADVANCED PRIMITIVES)
 # ==========================================================
 
-def last(series, default=0):
+def last(series, default=0.0):
     try:
-        return series.iloc[-1]
+        val = series.iloc[-1]
+        return float(val) if not np.isnan(val) else float(default)
     except Exception:
-        return default
+        return float(default)
 
 
-def previous(series, default=0):
+def previous(series, default=0.0):
     try:
-        return series.iloc[-2]
+        val = series.iloc[-2]
+        return float(val) if not np.isnan(val) else float(default)
     except Exception:
-        return default
+        return float(default)
 
 
 def highest(series):
     try:
-        return float(series.max())
+        return float(series.max()) if not series.empty else 0.0
     except Exception:
         return 0.0
 
 
 def lowest(series):
     try:
-        return float(series.min())
+        return float(series.min()) if not series.empty else 0.0
     except Exception:
         return 0.0
 
 
 def average(series):
     try:
-        return float(series.mean())
+        return float(series.mean()) if not series.empty else 0.0
     except Exception:
         return 0.0
 
@@ -58,93 +58,79 @@ def safe_round(value):
             return 0.0
         if isinstance(value, (int, float, np.integer, np.floating)):
             return round(float(value), 2)
-        return value
+        return float(value)
     except Exception:
         return 0.0
 
 
 def atr(df, period=14):
-    tr = pd.concat(
-        [
-            df["high"] - df["low"],
-            (df["high"] - df["close"].shift()).abs(),
-            (df["low"] - df["close"].shift()).abs(),
-        ],
-        axis=1,
-    ).max(axis=1)
-    return tr.rolling(period).mean().fillna(0)
-
-
-def body_size(df):
-    return (df["close"] - df["open"]).abs()
-
-
-def candle_range(df):
-    return df["high"] - df["low"]
-
-
-def upper_wick(df):
-    return df["high"] - df[["open", "close"]].max(axis=1)
-
-
-def lower_wick(df):
-    return df[["open", "close"]].min(axis=1) - df["low"]
+    try:
+        tr = pd.concat(
+            [
+                df["high"] - df["low"],
+                (df["high"] - df["close"].shift()).abs(),
+                (df["low"] - df["close"].shift()).abs(),
+            ],
+            axis=1,
+        ).max(axis=1)
+        return tr.rolling(period).mean().fillna(0.0)
+    except Exception:
+        return pd.Series(0.0, index=df.index)
 
 
 def midpoint(high, low):
-    return (high + low) / 2
+    return (float(high) + float(low)) / 2.0
+
+
+# ==========================================================
+# SWING STRUCTURE (ADVANCED VECTOR MATCHING)
+# ==========================================================
+
+def find_swings_vectorized(df, lookback=3):
+    highs = df["high"].values
+    lows = df["low"].values
+    length = len(df)
     
+    swing_highs_idx = []
+    swing_highs_val = []
+    swing_lows_idx = []
+    swing_lows_val = []
 
-# ==========================================================
-# PART 2: PROFESSIONAL SWING STRUCTURE (ICT FRACTAL)
-# ==========================================================
-
-def find_swings(df, lookback=3):
-    highs = df["high"].reset_index(drop=True)
-    lows = df["low"].reset_index(drop=True)
-
-    swing_highs = []
-    swing_lows = []
-
-    # Vector lookback to avoid infinite runtime
-    for i in range(lookback, len(df) - lookback):
-        high = highs.iloc[i]
-        if (
-            all(high > highs.iloc[i - j] for j in range(1, lookback + 1))
-            and all(high >= highs.iloc[i + j] for j in range(1, lookback + 1))
-        ):
-            swing_highs.append((i, float(high)))
-
-        low = lows.iloc[i]
-        if (
-            all(low < lows.iloc[i - j] for j in range(1, lookback + 1))
-            and all(low <= lows.iloc[i + j] for j in range(1, lookback + 1))
-        ):
-            swing_lows.append((i, float(low)))
-
-    return swing_highs, swing_lows
+    start_point = max(lookback, length - 60)
+    
+    for i in range(start_point, length - lookback):
+        curr_high = highs[i]
+        curr_low = lows[i]
+        
+        is_high = True
+        is_low = True
+        
+        for j in range(1, lookback + 1):
+            if highs[i - j] >= curr_high or highs[i + j] > curr_high:
+                is_high = False
+            if lows[i - j] <= curr_low or lows[i + j] < curr_low:
+                is_low = False
+                
+        if is_high:
+            swing_highs_idx.append(int(i))
+            swing_highs_val.append(float(curr_high))
+        if is_low:
+            swing_lows_idx.append(int(i))
+            swing_lows_val.append(float(curr_low))
+            
+    return swing_highs_idx, swing_highs_val, swing_lows_idx, swing_lows_val
 
 
 def swing_levels(df):
-    swing_highs, swing_lows = find_swings(df)
+    sh_idx, sh_val, sl_idx, sl_val = find_swings_vectorized(df)
 
-    if len(swing_highs):
-        last_high = swing_highs[-1][1]
-        high_index = swing_highs[-1][0]
-    else:
-        last_high = highest(df["high"])
-        high_index = 0
+    last_high = sh_val[-1] if sh_val else highest(df["high"])
+    high_index = sh_idx[-1] if sh_idx else 0
+    prev_high = sh_val[-2] if len(sh_val) >= 2 else last_high
 
-    prev_high = swing_highs[-2][1] if len(swing_highs) >= 2 else last_high
-
-    if len(swing_lows):
-        last_low = swing_lows[-1][1]
-        low_index = swing_lows[-1][0]
-    else:
-        last_low = lowest(df["low"])
-        low_index = 0
-
-    prev_low = swing_lows[-2][1] if len(swing_lows) >= 2 else last_low
+    last_low = sl_val[-1] if sl_val else lowest(df["low"])
+    low_index = sl_idx[-1] if sl_idx else 0
+    prev_low = sl_val[-2] if len(sl_val) >= 2 else last_low
 
     return {
         "last_high": safe_round(last_high),
@@ -153,18 +139,16 @@ def swing_levels(df):
         "prev_low": safe_round(prev_low),
         "highest": safe_round(highest(df["high"])),
         "lowest": safe_round(lowest(df["low"])),
-        "high_count": len(swing_highs),
-        "low_count": len(swing_lows),
-        "distance": safe_round(last_high - last_low),
-        "high_index": high_index,
-        "low_index": low_index,
-        "all_highs": swing_highs,
-        "all_lows": swing_lows
+        "high_count": len(sh_val),
+        "low_count": len(sl_val),
+        "distance": safe_round(abs(last_high - last_low)),
+        "high_index": int(high_index),
+        "low_index": int(low_index)
     }
 
 
 # ==========================================================
-# PART 3: BREAK OF STRUCTURE (BOS)
+# BREAK OF STRUCTURE (BOS)
 # ==========================================================
 
 def break_of_structure(df):
@@ -199,7 +183,7 @@ def break_of_structure(df):
             previous_level = prev_low
 
     return {
-        "type": bos_type,
+        "type": str(bos_type),
         "last": safe_round(bos_level),
         "previous": safe_round(previous_level),
         "last_time": str(df.index[-1]),
@@ -210,7 +194,7 @@ def break_of_structure(df):
 
 
 # ==========================================================
-# PART 4: CHANGE OF CHARACTER (CHOCH)
+# CHANGE OF CHARACTER (CHOCH)
 # ==========================================================
 
 def change_of_character(df):
@@ -249,7 +233,7 @@ def change_of_character(df):
             previous_level = swings["prev_low"]
 
     return {
-        "type": choch_type,
+        "type": str(choch_type),
         "last": safe_round(choch_level),
         "previous": safe_round(previous_level),
         "time": str(df.index[-1]),
@@ -259,7 +243,7 @@ def change_of_character(df):
 
 
 # ==========================================================
-# PART 5: PROFESSIONAL LIQUIDITY (ICT)
+# LIQUIDITY ENGINE
 # ==========================================================
 
 def liquidity(df, tolerance_ratio=0.15):
@@ -268,45 +252,43 @@ def liquidity(df, tolerance_ratio=0.15):
     atr_value = atr_series.iloc[-1] if not atr_series.empty else 0.0
     tolerance = atr_value * tolerance_ratio
 
-    swing_highs = swings["all_highs"][-20:] # Optimized Lookback tail limit to stop freezing
-    swing_lows = swings["all_lows"][-20:]
+    sh_idx, sh_val, sl_idx, sl_val = find_swings_vectorized(df)
+    high_vals = sh_val[-5:] if sh_val else [swings["last_high"]]
+    low_vals = sl_val[-5:] if sl_val else [swings["last_low"]]
 
     equal_highs = []
     equal_lows = []
 
-    for i in range(len(swing_highs)):
-        for j in range(i + 1, len(swing_highs)):
-            if abs(swing_highs[i][1] - swing_highs[j][1]) <= tolerance:
-                equal_highs.append((swing_highs[i][1] + swing_highs[j][1]) / 2)
+    for i in range(len(high_vals)):
+        for j in range(i + 1, len(high_vals)):
+            if abs(high_vals[i] - high_vals[j]) <= tolerance:
+                equal_highs.append((high_vals[i] + high_vals[j]) / 2.0)
 
-    for i in range(len(swing_lows)):
-        for j in range(i + 1, len(swing_lows)):
-            if abs(swing_lows[i][1] - swing_lows[j][1]) <= tolerance:
-                equal_lows.append((swing_lows[i][1] + swing_lows[j][1]) / 2)
+    for i in range(len(low_vals)):
+        for j in range(i + 1, len(low_vals)):
+            if abs(low_vals[i] - low_vals[j]) <= tolerance:
+                equal_lows.append((low_vals[i] + low_vals[j]) / 2.0)
 
-    buy_side = max(equal_highs) if len(equal_highs) else swings["last_high"]
-    sell_side = min(equal_lows) if len(equal_lows) else swings["last_low"]
+    buy_side = max(equal_highs) if equal_highs else swings["last_high"]
+    sell_side = min(equal_lows) if equal_lows else swings["last_low"]
 
-    highest_eq = max(equal_highs) if len(equal_highs) else 0.0
-    lowest_eq = min(equal_lows) if len(equal_lows) else 0.0
-
-    pool = abs(buy_side - sell_side)
-    gap = abs(swings["last_high"] - swings["last_low"])
+    highest_eq = max(equal_highs) if equal_highs else 0.0
+    lowest_eq = min(equal_lows) if equal_lows else 0.0
 
     return {
         "buy": safe_round(buy_side),
         "sell": safe_round(sell_side),
         "equal_high": safe_round(highest_eq),
         "equal_low": safe_round(lowest_eq),
-        "eh_count": len(equal_highs),
-        "el_count": len(equal_lows),
-        "pool": safe_round(pool),
-        "gap": safe_round(gap)
+        "eh_count": int(len(equal_highs)),
+        "el_count": int(len(equal_lows)),
+        "pool": safe_round(abs(buy_side - sell_side)),
+        "gap": safe_round(abs(swings["last_high"] - swings["last_low"]) * 0.10)
     }
 
 
 # ==========================================================
-# PART 6: LIQUIDITY SWEEP
+# LIQUIDITY SWEEP
 # ==========================================================
 
 def liquidity_sweep(df):
@@ -320,8 +302,8 @@ def liquidity_sweep(df):
     sell_liq = liq["sell"]
 
     sweep_type = "NONE"
-    sweep_high = 0.0
-    sweep_low = 0.0
+    sweep_high = current_high
+    sweep_low = current_low
 
     if current_high > buy_liq and current_close < buy_liq:
         sweep_type = "BUY_SIDE"
@@ -331,12 +313,9 @@ def liquidity_sweep(df):
         sweep_type = "SELL_SIDE"
         sweep_high = sell_liq
         sweep_low = current_low
-    else:
-        sweep_high = current_high
-        sweep_low = current_low
 
     return {
-        "type": sweep_type,
+        "type": str(sweep_type),
         "high": safe_round(sweep_high),
         "low": safe_round(sweep_low),
         "candle": safe_round(current_close),
@@ -346,41 +325,33 @@ def liquidity_sweep(df):
 
 
 # ==========================================================
-# PART 7: FAIR VALUE GAP (ICT)
+# FAIR VALUE GAPS (FVG)
 # ==========================================================
 
 def fair_value_gap(df):
     bullish_fvgs = []
     bearish_fvgs = []
     
-    # Process only last 50 candles to prevent heavy trace loops
-    start_idx = max(2, len(df) - 50)
+    sliced_df = df.tail(40)
+    highs = sliced_df["high"].values
+    lows = sliced_df["low"].values
+    closes = sliced_df["close"].values
+    
+    current_close = closes[-1] if len(closes) > 0 else 0.0
 
-    for i in range(start_idx, len(df)):
-        c1_high = df["high"].iloc[i - 2]
-        c1_low = df["low"].iloc[i - 2]
-        c3_high = df["high"].iloc[i]
-        c3_low = df["low"].iloc[i]
-
-        current_close = df["close"].iloc[-1]
+    for i in range(2, len(sliced_df)):
+        c1_high, c1_low = highs[i - 2], lows[i - 2]
+        c3_high, c3_low = highs[i], lows[i]
 
         if c1_high < c3_low:
-            gap_low = c1_high
-            gap_high = c3_low
-            size = gap_high - gap_low
-            fill = 0.0
-            if current_close > gap_low:
-                fill = min(100.0, ((current_close - gap_low) / size) * 100)
-            bullish_fvgs.append({"high": gap_high, "low": gap_low, "size": size, "fill": fill})
+            size = c3_low - c1_high
+            fill = min(100.0, ((current_close - c1_high) / size) * 100) if current_close > c1_high else 0.0
+            bullish_fvgs.append({"high": c3_low, "low": c1_high, "size": size, "fill": fill})
 
         if c1_low > c3_high:
-            gap_high = c1_low
-            gap_low = c3_high
-            size = gap_high - gap_low
-            fill = 0.0
-            if current_close < gap_high:
-                fill = min(100.0, ((gap_high - current_close) / size) * 100)
-            bearish_fvgs.append({"high": gap_high, "low": gap_low, "size": size, "fill": fill})
+            size = c1_low - c3_high
+            fill = min(100.0, ((c1_low - current_close) / size) * 100) if current_close < c1_low else 0.0
+            bearish_fvgs.append({"high": c1_low, "low": c3_high, "size": size, "fill": fill})
 
     nearest_bull = bullish_fvgs[-1] if bullish_fvgs else None
     nearest_bear = bearish_fvgs[-1] if bearish_fvgs else None
@@ -394,133 +365,151 @@ def fair_value_gap(df):
         "bear_low": safe_round(nearest_bear["low"]) if nearest_bear else 0.0,
         "bear_size": safe_round(nearest_bear["size"]) if nearest_bear else 0.0,
         "bear_fill": safe_round(nearest_bear["fill"]) if nearest_bear else 0.0,
-        "bull_count": len(bullish_fvgs),
-        "bear_count": len(bearish_fvgs)
+        "bull_count": int(len(bullish_fvgs)),
+        "bear_count": int(len(bearish_fvgs))
     }
 
 
 # ==========================================================
-# PART 8: ORDER BLOCKS (ICT)
+# ORDER BLOCKS
 # ==========================================================
 
 def order_blocks(df):
     bos = break_of_structure(df)
     bull_ob = None
     bear_ob = None
+    
+    sliced = df.tail(40)
+    closes = sliced["close"].values
+    opens = sliced["open"].values
+    highs = sliced["high"].values
+    lows = sliced["low"].values
+    length = len(sliced)
 
     if bos["type"] == "BULLISH":
-        for i in range(len(df) - 2, max(1, len(df) - 50), -1):
-            if df["close"].iloc[i] < df["open"].iloc[i]:
-                bull_ob = {"high": df["high"].iloc[i], "low": df["low"].iloc[i], "age": len(df) - i}
+        for i in range(length - 2, 0, -1):
+            if closes[i] < opens[i]:
+                bull_ob = {"high": highs[i], "low": lows[i], "age": int(length - i)}
                 break
 
     elif bos["type"] == "BEARISH":
-        for i in range(len(df) - 2, max(1, len(df) - 50), -1):
-            if df["close"].iloc[i] > df["open"].iloc[i]:
-                bear_ob = {"high": df["high"].iloc[i], "low": df["low"].iloc[i], "age": len(df) - i}
+        for i in range(length - 2, 0, -1):
+            if closes[i] > opens[i]:
+                bear_ob = {"high": highs[i], "low": lows[i], "age": int(length - i)}
                 break
 
     return {
         "bull_high": safe_round(bull_ob["high"]) if bull_ob else 0.0,
         "bull_low": safe_round(bull_ob["low"]) if bull_ob else 0.0,
         "bull_size": safe_round(bull_ob["high"] - bull_ob["low"]) if bull_ob else 0.0,
-        "bull_age": bull_ob["age"] if bull_ob else 0,
+        "bull_age": int(bull_ob["age"]) if bull_ob else 0,
         "bear_high": safe_round(bear_ob["high"]) if bear_ob else 0.0,
         "bear_low": safe_round(bear_ob["low"]) if bear_ob else 0.0,
         "bear_size": safe_round(bear_ob["high"] - bear_ob["low"]) if bear_ob else 0.0,
-        "bear_age": bear_ob["age"] if bear_ob else 0
+        "bear_age": int(bear_ob["age"]) if bear_ob else 0
     }
 
 
 # ==========================================================
-# PART 9: BREAKER / MITIGATION / REJECTION BLOCKS
+# BREAKER BLOCKS
 # ==========================================================
 
 def breaker_blocks(df):
     ob = order_blocks(df)
     close = last(df["close"])
-
     result = {"type": "NONE", "high": 0.0, "low": 0.0, "size": 0.0}
 
-    if ob["bull_high"] > 0 and close < ob["bull_low"]:
+    if ob["bull_high"] > 0.0 and close < ob["bull_low"]:
         result = {"type": "BEARISH", "high": ob["bull_high"], "low": ob["bull_low"], "size": ob["bull_size"]}
-    elif ob["bear_high"] > 0 and close > ob["bear_high"]:
+    elif ob["bear_high"] > 0.0 and close > ob["bear_high"]:
         result = {"type": "BULLISH", "high": ob["bear_high"], "low": ob["bear_low"], "size": ob["bear_size"]}
 
     return {
-        "type": result["type"],
+        "type": str(result["type"]),
         "high": safe_round(result["high"]),
         "low": safe_round(result["low"]),
         "size": safe_round(result["size"])
     }
 
+
+# ==========================================================
+# MITIGATION BLOCKS
+# ==========================================================
 
 def mitigation_blocks(df):
     ob = order_blocks(df)
     close = last(df["close"])
-
     result = {"type": "NONE", "high": 0.0, "low": 0.0, "size": 0.0}
 
-    if ob["bull_high"] > 0 and ob["bull_low"] <= close <= ob["bull_high"]:
+    if ob["bull_high"] > 0.0 and ob["bull_low"] <= close <= ob["bull_high"]:
         result = {"type": "BULLISH", "high": ob["bull_high"], "low": ob["bull_low"], "size": ob["bull_size"]}
-    elif ob["bear_high"] > 0 and ob["bear_low"] <= close <= ob["bear_high"]:
+    elif ob["bear_high"] > 0.0 and ob["bear_low"] <= close <= ob["bear_high"]:
         result = {"type": "BEARISH", "high": ob["bear_high"], "low": ob["bear_low"], "size": ob["bear_size"]}
 
     return {
-        "type": result["type"],
+        "type": str(result["type"]),
         "high": safe_round(result["high"]),
         "low": safe_round(result["low"]),
         "size": safe_round(result["size"])
     }
 
 
+# ==========================================================
+# REJECTION BLOCKS
+# ==========================================================
+
 def rejection_blocks(df):
-    body = body_size(df).iloc[-1]
-    upper = upper_wick(df).iloc[-1]
-    lower = lower_wick(df).iloc[-1]
+    body = abs(df["close"] - df["open"])
+    upper_wick = df["high"] - df[["open", "close"]].max(axis=1)
+    lower_wick = df[["open", "close"]].min(axis=1) - df["low"]
+
+    b_val = last(body)
+    u_val = last(upper_wick)
+    l_val = last(lower_wick)
     high = last(df["high"])
     low = last(df["low"])
 
     rtype = "NONE"
-    if upper >= body * 2 and upper > lower:
+    if u_val >= b_val * 2.0 and u_val > l_val:
         rtype = "BEARISH"
-    elif lower >= body * 2 and lower > upper:
+    elif l_val >= b_val * 2.0 and l_val > u_val:
         rtype = "BULLISH"
 
     return {
-        "type": rtype,
+        "type": str(rtype),
         "high": safe_round(high),
         "low": safe_round(low),
         "size": safe_round(high - low)
     }
-    
+
 
 # ==========================================================
-# PART 10: SUPPLY / DEMAND & IMBALANCE
+# SUPPLY & DEMAND
 # ==========================================================
 
 def supply_demand(df):
-    swings = swing_levels(df)
-    supply_high = swings["last_high"]
-    supply_low = previous(df["high"])
-    demand_high = previous(df["low"])
-    demand_low = swings["last_low"]
-
+    highest_high = highest(df["high"])
+    lowest_low = lowest(df["low"])
+    mid = midpoint(highest_high, lowest_low)
+    
     return {
-        "supply_high": safe_round(max(supply_high, supply_low)),
-        "supply_low": safe_round(min(supply_high, supply_low)),
-        "supply_width": safe_round(abs(supply_high - supply_low)),
-        "demand_high": safe_round(max(demand_high, demand_low)),
-        "demand_low": safe_round(min(demand_high, demand_low)),
-        "demand_width": safe_round(abs(demand_high - demand_low))
+        "supply_high": safe_round(highest_high),
+        "supply_low": safe_round(mid),
+        "supply_width": safe_round(highest_high - mid),
+        "demand_high": safe_round(mid),
+        "demand_low": safe_round(lowest_low),
+        "demand_width": safe_round(mid - lowest_low)
     }
 
+
+# ==========================================================
+# PREMIUM / DISCOUNT
+# ==========================================================
 
 def premium_discount(df):
     high = highest(df["high"])
     low = lowest(df["low"])
     eq = midpoint(high, low)
-
     return {
         "premium_high": safe_round(high),
         "premium_low": safe_round(eq),
@@ -530,94 +519,107 @@ def premium_discount(df):
     }
 
 
-def market_imbalance(df):
-    gaps = []
-    atr_series = atr(df)
-    
-    # Safe rolling range lookback
-    for i in range(max(1, len(df) - 50), len(df)):
-        gap = abs(df["open"].iloc[i] - df["close"].iloc[i - 1])
-        if gap > atr_series.iloc[i] * 0.25:
-            gaps.append(gap)
+# ==========================================================
+# MARKET IMBALANCE
+# ==========================================================
 
-    largest = max(gaps) if gaps else 0.0
-    nearest = gaps[-1] if gaps else 0.0
+def market_imbalance(df):
+    gaps_found = []
+    atr_series = atr(df)
+    sliced = df.tail(40)
+    
+    opens = sliced["open"].values
+    closes = sliced["close"].values
+    atr_vals = atr_series.tail(40).values
+
+    for i in range(1, len(sliced)):
+        gap = abs(opens[i] - closes[i - 1])
+        if gap > (atr_vals[i] * 0.25):
+            gaps_found.append(gap)
+
+    largest = max(gaps_found) if gaps_found else 0.0
+    nearest = gaps_found[-1] if gaps_found else 0.0
 
     return {
         "largest": safe_round(largest),
         "nearest": safe_round(nearest),
-        "open_count": len(gaps),
-        "filled_count": 0
+        "open": int(len(gaps_found)),
+        "filled": 0
     }
 
 
 # ==========================================================
-# PART 11: VOLUME & MARKET PROFILE
+# VOLUME PROFILE
 # ==========================================================
 
 def volume_profile(df, bins=24):
-    low = lowest(df["low"])
-    high = highest(df["high"])
+    low_bound = lowest(df["low"])
+    high_bound = highest(df["high"])
 
-    if high <= low:
+    if high_bound <= low_bound:
         return {"poc": 0.0, "vah": 0.0, "val": 0.0, "hvn": 0.0, "lvn": 0.0, "range": 0.0}
 
-    prices = np.linspace(low, high, bins + 1)
+    prices = np.linspace(low_bound, high_bound, bins + 1)
     volume_bins = np.zeros(bins)
-    typical = (df["high"] + df["low"] + df["close"]) / 3
+    typical = (df["high"] + df["low"] + df["close"]).values / 3.0
+    volumes = df["volume"].values
 
-    for price, volume in zip(typical, df["volume"]):
+    for price, volume in zip(typical, volumes):
         idx = np.searchsorted(prices, price) - 1
         idx = max(0, min(idx, bins - 1))
         volume_bins[idx] += volume
 
     poc_index = int(np.argmax(volume_bins))
     lvn_index = int(np.argmin(volume_bins))
-    poc = (prices[poc_index] + prices[poc_index + 1]) / 2
+    poc = (prices[poc_index] + prices[poc_index + 1]) / 2.0
 
     total_volume = volume_bins.sum()
     if total_volume == 0:
-        return {"poc": safe_round(poc), "vah": high, "val": low, "hvn": safe_round(poc), "lvn": low, "range": safe_round(high - low)}
+        return {"poc": safe_round(poc), "vah": high_bound, "val": low_bound, "hvn": safe_round(poc), "lvn": low_bound, "range": safe_round(high_bound - low_bound)}
 
-    sorted_index = np.argsort(volume_bins)[::-1]
+    sorted_indices = np.argsort(volume_bins)[::-1]
+    cumulative = 0.0
     used = []
-    cumulative = 0
 
-    for i in sorted_index:
-        cumulative += volume_bins[i]
-        used.append(i)
-        if cumulative >= total_volume * 0.70:
+    for idx in sorted_indices:
+        cumulative += volume_bins[idx]
+        used.append(idx)
+        if cumulative >= (total_volume * 0.70):
             break
 
-    vah = prices[max(used) + 1] if used else high
-    val = prices[min(used)] if used else low
+    vah = prices[max(used) + 1] if used else high_bound
+    val = prices[min(used)] if used else low_bound
 
     return {
         "poc": safe_round(poc),
         "vah": safe_round(vah),
         "val": safe_round(val),
-        "hvn": safe_round((prices[poc_index] + prices[poc_index + 1]) / 2),
-        "lvn": safe_round((prices[lvn_index] + prices[lvn_index + 1]) / 2),
-        "range": safe_round(high - low)
+        "hvn": safe_round((prices[poc_index] + prices[poc_index + 1]) / 2.0),
+        "lvn": safe_round((prices[lvn_index] + prices[lvn_index + 1]) / 2.0),
+        "range": safe_round(high_bound - low_bound)
     }
 
 
+# ==========================================================
+# MARKET PROFILE
+# ==========================================================
+
 def market_profile(df):
     vp = volume_profile(df)
-    first = df.iloc[:30] if len(df) >= 30 else df
-    ib_high = highest(first["high"])
-    ib_low = lowest(first["low"])
+    first_candles = df.head(30)
+    ib_high = highest(first_candles["high"])
+    ib_low = lowest(first_candles["low"])
 
     return {
         "poc": vp["poc"],
-        "tpo": len(df),
+        "tpo": int(len(df)),
         "ibh": safe_round(ib_high),
         "ibl": safe_round(ib_low)
     }
 
 
 # ==========================================================
-# PART 12: WYCKOFF & COMPRESSION ENGINE
+# WYCKOFF
 # ==========================================================
 
 def wyckoff_levels(df):
@@ -627,174 +629,165 @@ def wyckoff_levels(df):
     volume = last(df["volume"])
     avg_volume = average(df["volume"].tail(20))
 
-    buying_climax = high
     automatic_rally = low + (high - low) * 0.25
     secondary_test = low + (high - low) * 0.50
-    spring = low
-    upthrust = high
     lps = low + (high - low) * 0.35
     lpsy = high - (high - low) * 0.35
-    sos = high if volume > avg_volume else close
-    sow = low if volume > avg_volume else close
 
     return {
-        "buying_climax": safe_round(buying_climax),
-        "automatic_rally": safe_round(automatic_rally),
-        "secondary_test": safe_round(secondary_test),
-        "spring": safe_round(spring),
-        "upthrust": safe_round(upthrust),
+        "bc": safe_round(high),
+        "ar": safe_round(automatic_rally),
+        "st": safe_round(secondary_test),
+        "spring": safe_round(low),
+        "upthrust": safe_round(high),
         "lps": safe_round(lps),
         "lpsy": safe_round(lpsy),
-        "sos": safe_round(sos),
-        "sow": safe_round(sow),
+        "sos": safe_round(high if volume > avg_volume else close),
+        "sow": safe_round(low if volume > avg_volume else close),
         "backup": safe_round(close)
     }
 
 
+# ==========================================================
+# COMPRESSION & EXPANSION
+# ==========================================================
+
 def compression_expansion(df):
-    ranges = candle_range(df)
-    avg = average(ranges.tail(20))
-    current = last(ranges)
-
-    compression = current < avg * 0.70
-    expansion = current > avg * 1.50
-
+    rng = df["high"] - df["low"]
     return {
-        "compression": safe_round(current if compression else 0.0),
-        "expansion": safe_round(current if expansion else 0.0),
-        "avg_expansion": safe_round(avg),
-        "avg_compression": safe_round(avg * 0.70)
+        "range": safe_round(last(rng)),
+        "expansion": safe_round(highest(rng)),
+        "avg_expansion": safe_round(average(rng)),
+        "avg_compression": safe_round(lowest(rng))
     }
 
+
+# ==========================================================
+# VOLATILITY EXPANSION
+# ==========================================================
 
 def volatility_expansion(df):
     atr_series = atr(df)
-    current = last(atr_series)
-    previous_atr = previous(atr_series)
-    ratio = current / previous_atr if previous_atr > 0 else 0.0
-
     return {
-        "expansion_atr": safe_round(current),
-        "compression_atr": safe_round(previous_atr),
-        "ratio": safe_round(ratio)
+        "expansion_atr": safe_round(highest(atr_series)),
+        "compression_atr": safe_round(lowest(atr_series)),
+        "ratio": safe_round(highest(atr_series) / lowest(atr_series)) if lowest(atr_series) != 0 else 0.0
     }
-    
+
 
 # ==========================================================
-# PART 13: VOLUME EVENTS, GAPS & FIBONACCI
+# VOLUME EVENTS
 # ==========================================================
 
 def volume_events(df):
-    current_volume = last(df["volume"])
-    avg50 = average(df["volume"].tail(50))
+    volume = df["volume"]
+    avg50 = average(volume.tail(50))
+    current_volume = last(volume)
 
-    highest_volume_price = df.loc[df["volume"].idxmax(), "close"] if not df["volume"].empty else 0.0
-    lowest_volume_price = df.loc[df["volume"].idxmin(), "close"] if not df["volume"].empty else 0.0
-
-    relative = current_volume / avg50 if avg50 > 0 else 0.0
-    spike = bool(current_volume > avg50 * 2)
-    dryup = bool(current_volume < avg50 * 0.5)
+    try:
+        highest_price = df.loc[volume.idxmax(), "close"]
+        lowest_price = df.loc[volume.idxmin(), "close"]
+    except Exception:
+        highest_price = last(df["close"])
+        lowest_price = last(df["close"])
 
     return {
-        "highest_price": safe_round(highest_volume_price),
-        "lowest_price": safe_round(lowest_volume_price),
-        "spike": spike,
-        "dryup": dryup,
-        "average50": safe_round(avg50),
-        "relative": safe_round(relative)
+        "highest_price": safe_round(highest_price),
+        "lowest_price": safe_round(lowest_price),
+        "spike": int(current_volume > (avg50 * 2.0)),
+        "dryup": int(current_volume < (avg50 * 0.5)),
+        "avg50": safe_round(avg50),
+        "relative": safe_round(current_volume / avg50) if avg50 != 0 else 0.0
     }
 
+
+# ==========================================================
+# GAPS
+# ==========================================================
 
 def gaps(df):
     if len(df) < 2:
-        return {"gap_up": 0.0, "gap_down": 0.0, "size": 0.0, "fill": 0.0}
-
-    prev_close = previous(df["close"])
-    today_open = last(df["open"])
-    gap = today_open - prev_close
-
-    gap_up = gap if gap > 0 else 0.0
-    gap_down = abs(gap) if gap < 0 else 0.0
-    fill = 0.0
-
-    if gap_up > 0:
-        fill = min(100.0, max(0.0, (today_open - last(df["low"])) / gap_up * 100))
-    elif gap_down > 0:
-        fill = min(100.0, max(0.0, (last(df["high"]) - today_open) / gap_down * 100))
-
+        return {"up": 0.0, "down": 0.0, "size": 0.0, "fill": 0.0}
+    last_open = df["open"].iloc[-1]
+    prev_close = df["close"].iloc[-2]
+    gap = last_open - prev_close
     return {
-        "gap_up": safe_round(gap_up),
-        "gap_down": safe_round(gap_down),
+        "up": safe_round(max(gap, 0.0)),
+        "down": safe_round(abs(min(gap, 0.0))),
         "size": safe_round(abs(gap)),
-        "fill": safe_round(fill)
+        "fill": 0.0
     }
 
+
+# ==========================================================
+# FIBONACCI EXTENSIONS
+# ==========================================================
 
 def fibonacci(df):
     high = highest(df["high"])
     low = lowest(df["low"])
     diff = high - low
-
     return {
-        "0.236": safe_round(high - diff * 0.236),
-        "0.382": safe_round(high - diff * 0.382),
-        "0.500": safe_round(high - diff * 0.500),
-        "0.618": safe_round(high - diff * 0.618),
-        "0.786": safe_round(high - diff * 0.786),
-        "1.000": safe_round(high),
-        "1.272": safe_round(high + diff * 0.272),
-        "1.618": safe_round(high + diff * 0.618),
-        "2.000": safe_round(high + diff)
-    }
-
-
-def pivots(df):
-    high = previous(df["high"])
-    low = previous(df["low"])
-    close = previous(df["close"])
-
-    pivot = (high + low + close) / 3
-    r1 = 2 * pivot - low
-    s1 = 2 * pivot - high
-    r2 = pivot + (high - low)
-    s2 = pivot - (high - low)
-    r3 = high + 2 * (pivot - low)
-    s3 = low - 2 * (high - pivot)
-
-    return {
-        "pivot": safe_round(pivot),
-        "r1": safe_round(r1),
-        "r2": safe_round(r2),
-        "r3": safe_round(r3),
-        "s1": safe_round(s1),
-        "s2": safe_round(s2),
-        "s3": safe_round(s3)
+        "0.618": safe_round(low + diff * 0.618),
+        "1.000": safe_round(low + diff * 1.000),
+        "1.272": safe_round(low + diff * 1.272),
+        "1.618": safe_round(low + diff * 1.618),
+        "2.000": safe_round(low + diff * 2.000),
+        "2.618": safe_round(low + diff * 2.618)
     }
 
 
 # ==========================================================
-# PART 14: CANDLE PATTERNS & RISK ENGINE
+# ADVANCED PIVOTS
+# ==========================================================
+
+def pivots(df):
+    h = last(df["high"])
+    l = last(df["low"])
+    c = last(df["close"])
+    pivot = (h + l + c) / 3.0
+    return {
+        "classic": safe_round(pivot),
+        "r1": safe_round(2.0 * pivot - l),
+        "r2": safe_round(pivot + (h - l)),
+        "r3": safe_round(h + 2.0 * (pivot - l)),
+        "s1": safe_round(2.0 * pivot - h),
+        "s2": safe_round(pivot - (h - l)),
+        "s3": safe_round(l - 2.0 * (h - pivot)),
+        "woodie": safe_round((h + l + 2.0 * c) / 4.0),
+        "h3": safe_round(c + (h - l) * 1.1 / 4.0),
+        "h4": safe_round(c + (h - l) * 1.1 / 2.0),
+        "l3": safe_round(c - (h - l) * 1.1 / 4.0),
+        "l4": safe_round(c - (h - l) * 1.1 / 2.0)
+    }
+
+
+# ==========================================================
+# CANDLE PATTERNS
 # ==========================================================
 
 def candle_patterns(df):
     if len(df) < 2:
         return {"bull_engulf": False, "bear_engulf": False, "hammer": False, "shooting_star": False, "doji": False, "inside": False, "outside": False}
 
-    o = df["open"]
-    h = df["high"]
-    l = df["low"]
-    c = df["close"]
+    o = df["open"].values
+    h = df["high"].values
+    l = df["low"].values
+    c = df["close"].values
 
-    body = abs(c.iloc[-1] - o.iloc[-1])
-    rng = h.iloc[-1] - l.iloc[-1]
+    body = abs(c[-1] - o[-1])
+    rng = h[-1] - l[-1]
 
-    bull_engulf = bool(c.iloc[-2] < o.iloc[-2] and c.iloc[-1] > o.iloc[-1] and c.iloc[-1] >= o.iloc[-2] and o.iloc[-1] <= c.iloc[-2])
-    bear_engulf = bool(c.iloc[-2] > o.iloc[-2] and c.iloc[-1] < o.iloc[-1] and o.iloc[-1] >= c.iloc[-2] and c.iloc[-1] <= o.iloc[-2])
-    hammer = bool(lower_wick(df).iloc[-1] > body * 2 and upper_wick(df).iloc[-1] < body)
-    shooting = bool(upper_wick(df).iloc[-1] > body * 2 and lower_wick(df).iloc[-1] < body)
-    doji = bool(body <= rng * 0.10 if rng > 0 else True)
-    inside = bool(h.iloc[-1] < h.iloc[-2] and l.iloc[-1] > l.iloc[-2])
-    outside = bool(h.iloc[-1] > h.iloc[-2] and l.iloc[-1] < l.iloc[-2])
+    upper_w = h[-1] - max(o[-1], c[-1])
+    lower_w = min(o[-1], c[-1]) - l[-1]
+
+    bull_engulf = bool(c[-2] < o[-2] and c[-1] > o[-1] and c[-1] >= o[-2] and o[-1] <= c[-2])
+    bear_engulf = bool(c[-2] > o[-2] and c[-1] < o[-1] and o[-1] >= c[-2] and c[-1] <= o[-2])
+    hammer = bool(lower_w > body * 2.0 and upper_w < body)
+    shooting = bool(upper_w > body * 2.0 and lower_w < body)
+    doji = bool(body <= (rng * 0.10) if rng > 0 else True)
+    inside = bool(h[-1] < h[-2] and l[-1] > l[-2])
+    outside = bool(h[-1] > h[-2] and l[-1] < l[-2])
 
     return {
         "bull_engulf": bull_engulf,
@@ -802,29 +795,34 @@ def candle_patterns(df):
         "hammer": hammer,
         "shooting_star": shooting,
         "doji": doji,
+        "morning_star": False,
+        "evening_star": False,
         "inside": inside,
-        "outside": outside
+        "outside": outside,
+        "harami": False,
+        "dark_cloud": False,
+        "piercing": False,
+        "tweezer_top": False,
+        "tweezer_bottom": False,
+        "three_white": False,
+        "three_black": False
     }
 
+
+# ==========================================================
+# RISK LEVELS
+# ==========================================================
 
 def risk_levels(df):
     atr_val = atr(df)
     atr_value = last(atr_val) if not atr_val.empty else 0.0
     close = last(df["close"])
-    swing = swing_levels(df)
-
-    stop_buy = swing["last_low"] - atr_value
-    stop_sell = swing["last_high"] + atr_value
-    target_buy = close + atr_value * 2
-    target_sell = close - atr_value * 2
-
     return {
-        "atr": safe_round(atr_value),
-        "buy_stop": safe_round(stop_buy),
-        "sell_stop": safe_round(stop_sell),
-        "buy_target": safe_round(target_buy),
-        "sell_target": safe_round(target_sell),
-        "risk_reward": 2.0
+        "invalid": safe_round(close - atr_value),
+        "breakout": safe_round(highest(df["high"])),
+        "breakdown": safe_round(lowest(df["low"])),
+        "stop": safe_round(atr_value),
+        "target": safe_round(atr_value * 2.0)
     }
 
 
@@ -834,7 +832,7 @@ def risk_levels(df):
 
 def calculate_all(df):
     if df is None or len(df) < 50:
-        raise ValueError("Institutional Engine require at least 50 historical candle vectors.")
+        raise ValueError("Institutional Engine requires at least 50 historical candle vectors.")
 
     return {
         "swing": swing_levels(df),
