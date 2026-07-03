@@ -2,7 +2,7 @@
 # BOT CONFIGURATION
 # ==========================================================
 
-BOT_TOKEN = "8929570850:AAH1Iyi4Wtw-EEP_Hcy7DQ2O6C4LxIoEmp0"
+BOT_TOKEN = "8476710135:AAH_ru7d1NIeKPk7B7g5oW79957xqFuQrMg"
 
 # ==========================================================
 # TV DATA CONFIG
