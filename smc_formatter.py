@@ -164,11 +164,19 @@ def format_imbalance(df):
         "last_gap_down": gap_down[-1] if gap_down else None,
     }
 
+# =========================
+# 8.5. VWAP SYSTEM (YEH BLOCK NAYA ADD HUA HAI)
+# =========================
+def format_vwap(df):
+    from indicators import calculate_vwap_metrics
+    try:
+        return calculate_vwap_metrics(df)
+    except Exception:
+        return {}
 
 # =========================
 # 9. MASTER OUTPUT FUNCTION
 # =========================
-
 def get_smc_summary(df):
     return {
         "swing_structure": format_swings(df),
@@ -179,4 +187,5 @@ def get_smc_summary(df):
         "fvg": format_fvg(df),
         "order_blocks": format_order_blocks(df),
         "imbalance": format_imbalance(df),
+        "vwap_system": format_vwap(df),  # <-- YEH LINE YAHAN LGA DI HAI
     }
