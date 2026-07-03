@@ -775,6 +775,29 @@ ATR Stop Distance: {v(data['risk']['stop'])}
 ATR Target Distance: {v(data['risk']['target'])}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+2️⃣5️⃣ VWAP System ({timeframe.upper()})
+
+Requested Timeframe VWAP:
+↳ {timeframe.upper()} VWAP: {v(data['vwap_system'][timeframe]['val']) if timeframe in data['vwap_system'] else v(data['vwap_system']['session']['val'])} | Dist: {v(data['vwap_system'][timeframe]['dist']) if timeframe in data['vwap_system'] else v(data['vwap_system']['session']['dist'])} | {data['vwap_system'][timeframe]['pos'] if timeframe in data['vwap_system'] else data['vwap_system']['session']['pos']} | {data['vwap_system'][timeframe]['dir'] if timeframe in data['vwap_system'] else data['vwap_system']['session']['dir']} | Cross: {data['vwap_system'][timeframe]['cross'] if timeframe in data['vwap_system'] else data['vwap_system']['session']['cross']}
+
+Anchored VWAP Levels:
+• Anchored VWAP Swing High: {v(data['vwap_system']['avwap_sh']['val'])} | Dist: {v(data['vwap_system']['avwap_sh']['dist'])} | {data['vwap_system']['avwap_sh']['pos']}
+• Anchored VWAP Swing Low: {v(data['vwap_system']['avwap_sl']['val'])} | Dist: {v(data['vwap_system']['avwap_sl']['dist'])} | {data['vwap_system']['avwap_sl']['pos']}
+• Anchored VWAP Latest BOS: {v(data['vwap_system']['avwap_bos']['val'])} | Dist: {v(data['vwap_system']['avwap_bos']['dist'])} | {data['vwap_system']['avwap_bos']['pos']}
+• Anchored VWAP Latest CHOCH: {v(data['vwap_system']['avwap_choch']['val'])} | Dist: {v(data['vwap_system']['avwap_choch']['dist'])} | {data['vwap_system']['avwap_choch']['pos']}
+• Anchored VWAP Latest Breakout: {v(data['vwap_system']['avwap_breakout']['val'])} | Dist: {v(data['vwap_system']['avwap_breakout']['dist'])} | {data['vwap_system']['avwap_breakout']['pos']}
+
+VWAP Analytics:
+• Confluence: {data['vwap_system']['confluence']}
+• Strongest Support: {v(data['vwap_system']['strongest_support'])}
+• Strongest Resistance: {v(data['vwap_system']['strongest_resistance'])}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+"""
+
+    return msg
+
 """
 
     return msg
