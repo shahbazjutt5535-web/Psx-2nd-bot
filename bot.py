@@ -151,7 +151,7 @@ SYMBOLS = {
     # ================= CRYPTO =================
 
     "LINK": ("LINKUSDT", "BINANCE"),
-    "Ethereium": ("ETHUSDT", "BINANCE"),
+    "ETH": ("ETHUSDT", "BINANCE"),
     "TRX": ("TRXUSDT", "BINANCE")
 
 }
