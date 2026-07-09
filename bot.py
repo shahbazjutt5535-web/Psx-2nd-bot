@@ -138,6 +138,10 @@ SYMBOLS = {
 
     "MZNPETF": ("MZNPETF", "PSX"),
     "NBPGETF": ("NBPGETF", "PSX"),
+    "KSE100": ("KSE100", "PSX"),
+    "NATURALGAS": ("NATURALGAS", "CAPITALCOM"),
+    "UREA": ("UFV1!", "CBOT"),
+    "USDPKR": ("USDPKR", "FX_IDC"),
 
     # ================= FOREX =================
 
