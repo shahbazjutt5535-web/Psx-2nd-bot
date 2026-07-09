@@ -140,7 +140,7 @@ SYMBOLS = {
     "NBPGETF": ("NBPGETF", "PSX"),
     "KSE100": ("KSE100", "PSX"),
     "NATURALGAS": ("NATURALGAS", "CAPITALCOM"),
-    "UREA": ("UFV1!", "CME_MINI"),
+    "UREA": ("UFV1!", ("UFV1", "CME"),
     "USDPKR": ("USDPKR", "FX_IDC"),
 
     # ================= FOREX =================
